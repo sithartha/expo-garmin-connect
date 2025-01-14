@@ -1,5 +1,3 @@
-import appRoot from 'app-root-path';
-
 import _ from 'lodash';
 import { DateTime } from 'luxon';
 import { HttpClient } from '../common/HttpClient';

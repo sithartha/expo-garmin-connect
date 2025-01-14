@@ -37,11 +37,8 @@
         "examples/*"
     ],
     "devDependencies": {
-        "@types/app-root-path": "^1.2.4",
         "@types/lodash": "^4.14.199",
         "@types/luxon": "^3.3.2",
-        "@types/node": "^18.11.15",
-        "@types/qs": "^6.9.7",
         "@types/request-promise": "^4.1.48",
         "pre-commit": "^1.2.2",
         "prettier": "^2.8.1",
@@ -54,7 +51,6 @@
     },
     "runkitExampleFilename": "./examples/example.js",
     "dependencies": {
-        "app-root-path": "^3.1.0",
         "axios": "^1.5.1",
         "crypto": "^1.0.1",
         "lodash": "^4.17.21",
