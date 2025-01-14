@@ -4,11 +4,9 @@ import axios, {
     AxiosResponse,
     RawAxiosRequestHeaders
 } from 'axios';
-import FormData from 'form-data';
 import _ from 'lodash';
 import { DateTime } from 'luxon';
 import OAuth from 'oauth-1.0a';
-import qs from 'qs';
 import { UrlClass } from '../garmin/UrlClass';
 import {
     IOauth1,
@@ -197,25 +195,23 @@ export class HttpClient {
         password: string
     ): Promise<string> {
         // Step1: Set cookie
-        const step1Params = {
+        const step1Params = new URLSearchParams({
             clientId: 'GarminConnect',
             locale: 'en',
             service: this.url.GC_MODERN
-        };
-        const step1Url = `${this.url.GARMIN_SSO_EMBED}?${qs.stringify(
-            step1Params
-        )}`;
+        });
+        const step1Url = `${this.url.GARMIN_SSO_EMBED}?${step1Params}`;
         // console.log('login - step1Url:', step1Url);
         await this.client.get(step1Url);
 
         // Step2 Get _csrf
-        const step2Params = {
+        const step2Params = new URLSearchParams({
             id: 'gauth-widget',
-            embedWidget: true,
+            embedWidget: 'true',
             locale: 'en',
             gauthHost: this.url.GARMIN_SSO_EMBED
-        };
-        const step2Url = `${this.url.SIGNIN_URL}?${qs.stringify(step2Params)}`;
+        });
+        const step2Url = `${this.url.SIGNIN_URL}?${step2Params}`;
         // console.log('login - step2Url:', step2Url);
         const step2Result = await this.get<string>(step2Url);
         // console.log('login - step2Result:', step2Result)
@@ -227,9 +223,9 @@ export class HttpClient {
         // console.log('login - csrf:', csrf_token);
 
         // Step3 Get ticket
-        const signinParams = {
+        const signinParams = new URLSearchParams({
             id: 'gauth-widget',
-            embedWidget: true,
+            embedWidget: 'true',
             clientId: 'GarminConnect',
             locale: 'en',
             gauthHost: this.url.GARMIN_SSO_EMBED,
@@ -237,8 +233,8 @@ export class HttpClient {
             source: this.url.GARMIN_SSO_EMBED,
             redirectAfterAccountLoginUrl: this.url.GARMIN_SSO_EMBED,
             redirectAfterAccountCreationUrl: this.url.GARMIN_SSO_EMBED
-        };
-        const step3Url = `${this.url.SIGNIN_URL}?${qs.stringify(signinParams)}`;
+        });
+        const step3Url = `${this.url.SIGNIN_URL}?${signinParams}`;
         // console.log('login - step3Url:', step3Url);
         const step3Form = new FormData();
         step3Form.append('username', username);
@@ -318,14 +314,12 @@ export class HttpClient {
         if (!this.OAUTH_CONSUMER) {
             throw new Error('No OAUTH_CONSUMER');
         }
-        const params = {
+        const params = new URLSearchParams({
             ticket,
             'login-url': this.url.GARMIN_SSO_EMBED,
-            'accepts-mfa-tokens': true
-        };
-        const url = `${this.url.OAUTH_URL}/preauthorized?${qs.stringify(
-            params
-        )}`;
+            'accepts-mfa-tokens': 'true'
+        });
+        const url = `${this.url.OAUTH_URL}/preauthorized?${params}`;
 
         const oauth = this.getOauthClient(this.OAUTH_CONSUMER);
 
@@ -342,8 +336,8 @@ export class HttpClient {
                 'User-Agent': USER_AGENT_CONNECTMOBILE
             }
         });
-        // console.log('getOauth1Token - response:', response);
-        const token = qs.parse(response) as unknown as IOauth1Token;
+        console.log('getOauth1Token - response:', response);
+        const token = response as unknown as IOauth1Token;
         // console.log('getOauth1Token - token:', token);
         this.oauth1Token = token;
         return { token, oauth };
@@ -377,9 +371,12 @@ export class HttpClient {
             data: null
         };
 
-        const step5AuthData = oauth1.oauth.authorize(requestData, token);
+        const res = JSON.stringify({
+            ...oauth1.oauth.authorize(requestData, token)
+        });
+        const step5AuthData = new URLSearchParams(res);
         // console.log('login - step5AuthData:', step5AuthData);
-        const url = `${baseUrl}?${qs.stringify(step5AuthData)}`;
+        const url = `${baseUrl}?${step5AuthData}`;
         // console.log('exchange - url:', url);
         this.oauth2Token = undefined;
         const response = await this.post<IOauth2Token>(url, null, {
