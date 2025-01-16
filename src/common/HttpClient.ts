@@ -14,7 +14,10 @@ import {
     IOauth1Token,
     IOauth2Token
 } from '../garmin/types';
-const crypto = require('crypto');
+import { hmacSHA1 } from 'react-native-hmac';
+
+import base64 from 'crypto-js/enc-base64';
+import hmac from 'crypto-js/hmac-sha1';
 
 const CSRF_RE = new RegExp('name="_csrf"\\s+value="(.+?)"');
 const TICKET_RE = new RegExp('ticket=([^"]+)"');
@@ -87,6 +90,8 @@ export class HttpClient {
                     return this.client(originalRequest);
                 }
                 if (axios.isAxiosError(error)) {
+                    console.log(originalRequest.url);
+
                     if (error?.response) this.handleError(error?.response);
                 }
                 throw error;
@@ -322,13 +327,14 @@ export class HttpClient {
         const url = `${this.url.OAUTH_URL}/preauthorized?${params}`;
 
         const oauth = this.getOauthClient(this.OAUTH_CONSUMER);
+        console.log('oauth', oauth);
 
         const step4RequestData = {
             url: url,
             method: 'GET'
         };
         const headers = oauth.toHeader(oauth.authorize(step4RequestData));
-        // console.log('getOauth1Token - headers:', headers);
+        console.log('getOauth1Token - headers:', headers);
 
         const response = await this.get<string>(url, {
             headers: {
@@ -338,20 +344,22 @@ export class HttpClient {
         });
         console.log('getOauth1Token - response:', response);
         const token = response as unknown as IOauth1Token;
-        // console.log('getOauth1Token - token:', token);
-        this.oauth1Token = token;
-        return { token, oauth };
+        console.log(
+            'getOauth1Token - token:',
+            Object.fromEntries(new URLSearchParams(token))
+        );
+        this.oauth1Token = Object.fromEntries(new URLSearchParams(token));
+        return { token: Object.fromEntries(new URLSearchParams(token)), oauth };
     }
 
     getOauthClient(consumer: IOauth1Consumer): OAuth {
         const oauth = new OAuth({
             consumer: consumer,
             signature_method: 'HMAC-SHA1',
-            hash_function(base_string: string, key: string) {
-                return crypto
-                    .createHmac('sha1', key)
-                    .update(base_string)
-                    .digest('base64');
+            hash_function: (base_string: string, key: string) => {
+                const hmacSig = hmac(base_string, key).toString(base64);
+                console.log('hmacSHA1(base_string, key)', hmacSig);
+                return hmacSig;
             }
         });
         return oauth;
@@ -362,7 +370,7 @@ export class HttpClient {
             key: oauth1.token.oauth_token,
             secret: oauth1.token.oauth_token_secret
         };
-        // console.log('exchange - token:', token);
+        console.log('exchange - token:', token);
 
         const baseUrl = `${this.url.OAUTH_URL}/exchange/user/2.0`;
         const requestData = {
@@ -371,9 +379,9 @@ export class HttpClient {
             data: null
         };
 
-        const res = JSON.stringify({
+        const res = {
             ...oauth1.oauth.authorize(requestData, token)
-        });
+        };
         const step5AuthData = new URLSearchParams(res);
         // console.log('login - step5AuthData:', step5AuthData);
         const url = `${baseUrl}?${step5AuthData}`;
